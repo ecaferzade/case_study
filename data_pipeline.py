@@ -37,20 +37,36 @@ def get_hist_vital_sign(url):
     return vital_sign_hist
 
 
+def create_vital_array(vital_sign_hist):
+    """Create the vital sign matrix (np.array) out of vital sign history list.
+
+    Arguments:
+    vital_sign_hist (list): This is a list of dictionaries where each dict represents
+                            a patients data.
+
+    Returns:
+    vital_array (np.array) : Vital signs as a MxN matrix, where M in the number of patients
+                           and N number of vital signs.
+    """
+
+
+
 if __name__ == '__main__':
     # Depending on called arguments...
     # ...the script runs in two operation modes: realtime or batch
     if len(sys.argv) == 1:  # If arguments are missing
         print('\ndata_pipeline.py: Missing arguments. See \'data_pipeline.py -help\'.\n')
     elif sys.argv[1] == '-realtime':  # realtime mode
-        get_hist_vital_sign('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
+        vital_sign_hist = get_hist_vital_sign('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
+        create_vital_array(vital_sign_hist)
     elif sys.argv[1] == '-batch':  # batch mode for demo purposes
         # TBD
         pass
     elif sys.argv[1] == '-help':
         print_help()  # prints help on the command line
     else:  # unexpected arguments given
-        print('\ndata_pipeline.py: Unexpected argument \'{}\'. Please run with \'-help\' to see the expected arguments.\n'.format(sys.argv[1]))
+        print('\ndata_pipeline.py: Unexpected argument \'{}\'.'
+              ' Please run with \'-help\' to see the expected arguments.\n'.format(sys.argv[1]))
 
 
 
