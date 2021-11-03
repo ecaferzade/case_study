@@ -5,7 +5,7 @@ import numpy as np
 from time import sleep
 
 
-def command_line_help():
+def print_help():
     """Print help instructions on command line"""
     print('\n' + '\033[1m' + 'SYNOPSIS' + '\033[0m' + '\n\tdata_pipeline.py [-realtime] [-batch] [-help]')
     print('\n' + '\033[1m' + 'OPTIONS' + '\033[0m')
@@ -22,14 +22,19 @@ def command_line_help():
     print('\t  Prints the synopsis and descriptions for argument options.\n')
 
 
-def get_data_from_api(url):
-    """Get the data of the patients from the given API.
+def get_hist_vital_sign(url):
+    """Get the history of vital signs data of the patients from the given API.
+    Also check if the API is responding as expected.
 
-    Keyword arguments:
-    url -- the url of the API endpoint.
+    Arguments:
+    url (str): the url of the API endpoint.
+
+    Returns:
+    vital_sign_hist (list): a list of vital signs data of patients in JSON format.
     """
-    r = requests.get(url)
-    # TBD : Check whether status code is OK!
+    resp_api = requests.get(url)
+    vital_sign_hist = resp_api.json()['patient_list']
+    return vital_sign_hist
 
 
 if __name__ == '__main__':
@@ -38,13 +43,12 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:  # If arguments are missing
         print('\ndata_pipeline.py: Missing arguments. See \'data_pipeline.py -help\'.\n')
     elif sys.argv[1] == '-realtime':  # realtime mode
-        # TBD
-        pass
+        get_hist_vital_sign('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
     elif sys.argv[1] == '-batch':  # batch mode for demo purposes
         # TBD
         pass
     elif sys.argv[1] == '-help':
-        command_line_help()  # prints help on the command line
+        print_help()  # prints help on the command line
     else:  # unexpected arguments given
         print('\ndata_pipeline.py: Unexpected argument \'{}\'. Please run with \'-help\' to see the expected arguments.\n'.format(sys.argv[1]))
 
