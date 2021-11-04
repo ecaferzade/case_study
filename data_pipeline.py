@@ -36,8 +36,7 @@ def get_vital_sign_hist(url):
     if not (200 <= resp_api.status_code < 300):  # Check if HTTP status code is OK
         print("Problem: status code of the response", resp_api.status_code)
     vital_sign_history = resp_api.json()['patient_list']
-    print(vital_sign_history)
-    if vital_sign_history == []:
+    if not vital_sign_history:  # If vital_sign_history is empty
         print('The API didn\'t respond with content.')
     return vital_sign_history
 
@@ -74,9 +73,12 @@ if __name__ == '__main__':
         pass
     elif sys.argv[1] == '-batch':  # batch mode for demo purposes
         vital_sign_hist = get_vital_sign_hist('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
-        vital_array = conv_vital_to_array(vital_sign_hist)
+        pat_id = np.array([[x['patient_id'] for x in vital_sign_hist]])  # patient ids
+        vital_array = conv_vital_to_array(vital_sign_hist)  # input prep for predict function
         model = model.ICUZen()
         predictions = model.predict(vital_array[:, :-1])  # last column (timestamp) is not expected by predict function
+        data = np.concatenate((pat_id.T, vital_array, np.reshape(predictions, (500, 1))), axis=1)
+        np.savetxt('hebele.txt', data)
     elif sys.argv[1] == '-help':  # If help is needed
         print_help()  # prints help on the command line
     else:  # unexpected arguments given
