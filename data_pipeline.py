@@ -2,7 +2,7 @@ import sys
 import model
 import requests
 import numpy as np
-from time import sleep
+import re
 
 
 def print_help():
@@ -22,33 +22,46 @@ def print_help():
     print('\t  Prints the synopsis and descriptions for argument options.\n')
 
 
-def get_hist_vital_sign(url):
+def get_vital_sign_hist(url):
     """Get the history of vital signs data of the patients from the given API.
-    Also check if the API is responding as expected.
 
-    Arguments:
-    url (str): the url of the API endpoint.
+       Arguments:
+       url (str): the url of the API endpoint.
 
-    Returns:
-    vital_sign_hist (list): a list of vital signs data of patients in JSON format.
+       Returns:
+       vital_sign_history (list): a list of vital signs data of patients in JSON format.
     """
     resp_api = requests.get(url)
-    vital_sign_hist = resp_api.json()['patient_list']
-    return vital_sign_hist
+    print('\nThe status code of the api response is: \n', resp_api.status_code)
+    if not (200 <= resp_api.status_code < 300):  # Check if HTTP status code is OK
+        print("Problem: status code of the response", resp_api.status_code)
+    vital_sign_history = resp_api.json()['patient_list']
+    print(vital_sign_history)
+    if vital_sign_history == []:
+        print('The API didn\'t respond with content.')
+    return vital_sign_history
 
 
-def create_vital_array(vital_sign_hist):
-    """Create the vital sign matrix (np.array) out of vital sign history list.
+def conv_vital_to_array(vital_sign_history):
+    """Create the vital sign matrix (np.array) out of vital sign history list
+       to feed it in the ICU model: Extract the vital sign values from string
+       using regular expressions, convert them in floats
+       and make a numpy array out of it.
 
-    Arguments:
-    vital_sign_hist (list): This is a list of dictionaries where each dict represents
-                            a patients data.
+       Arguments:
+       vital_sign_history (list): This is a list of dictionaries where each dict represents
+       a patients data.
 
-    Returns:
-    vital_array (np.array) : Vital signs as a MxN matrix, where M in the number of patients
-                           and N number of vital signs.
+       Returns:
+       vital_array (np.array) : Vital signs as a MxN matrix, where M in the number of patients
+       and N number of vital signs.
     """
-
+    temp = []  # temp list used for list->np.array transition
+    for patient in vital_sign_history:
+        vit_val = re.findall(r'[-+]?\d*\.\d+|\d+', patient['vital_signs'])
+        temp.append([float(i) for i in vit_val])  # Collect all floats in this list
+    vital_arr = np.array(temp)  # Make an np.array out of the list
+    return vital_arr
 
 
 if __name__ == '__main__':
@@ -57,33 +70,15 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:  # If arguments are missing
         print('\ndata_pipeline.py: Missing arguments. See \'data_pipeline.py -help\'.\n')
     elif sys.argv[1] == '-realtime':  # realtime mode
-        vital_sign_hist = get_hist_vital_sign('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
-        create_vital_array(vital_sign_hist)
-    elif sys.argv[1] == '-batch':  # batch mode for demo purposes
         # TBD
         pass
-    elif sys.argv[1] == '-help':
+    elif sys.argv[1] == '-batch':  # batch mode for demo purposes
+        vital_sign_hist = get_vital_sign_hist('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
+        vital_array = conv_vital_to_array(vital_sign_hist)
+        model = model.ICUZen()
+        predictions = model.predict(vital_array[:, :-1])  # last column (timestamp) is not expected by predict function
+    elif sys.argv[1] == '-help':  # If help is needed
         print_help()  # prints help on the command line
     else:  # unexpected arguments given
         print('\ndata_pipeline.py: Unexpected argument \'{}\'.'
               ' Please run with \'-help\' to see the expected arguments.\n'.format(sys.argv[1]))
-
-
-
-
-
-    """
-    l = []
-    for t in d['vital_signs'].split():
-        try:
-            l.append(float(t))
-        except ValueError:
-            pass
-    array = np.array(l[:-1], ndmin=2)
-    print(array.shape)
-    icu = model.ICUZen()
-    alarm = icu.predict(array)
-    print(alarm)
-    """
-
-
