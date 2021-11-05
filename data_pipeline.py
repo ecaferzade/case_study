@@ -3,6 +3,7 @@ import model
 import requests
 import numpy as np
 import re
+import time
 
 
 def print_help():
@@ -72,13 +73,25 @@ if __name__ == '__main__':
         # TBD
         pass
     elif sys.argv[1] == '-batch':  # batch mode for demo purposes
-        vital_sign_hist = get_vital_sign_hist('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
-        pat_id = np.array([[x['patient_id'] for x in vital_sign_hist]])  # patient ids
-        vital_array = conv_vital_to_array(vital_sign_hist)  # input prep for predict function
         model = model.ICUZen()
-        predictions = model.predict(vital_array[:, :-1])  # last column (timestamp) is not expected by predict function
-        data = np.concatenate((pat_id.T, vital_array, np.reshape(predictions, (500, 1))), axis=1)
-        np.savetxt('hebele.txt', data)
+        file = open('xyz.txt', 'w')
+        data = np.array([['pat_id', 'body_temp', 'blood_pres_sys', 'blood_pres_dia',
+                         'heart_rate', 'resp_rate', 'time_stmp', 'predic']])
+        while True:
+            vital_sign_hist = get_vital_sign_hist('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
+            if not vital_sign_hist:  # If vital_sign_history is empty
+                pass
+            else:  # If the API responded with content
+                pat_id = np.array([[x['patient_id'] for x in vital_sign_hist]])  # patient ids
+                vital_array = conv_vital_to_array(vital_sign_hist)  # input prep for predict function
+                predictions = model.predict(vital_array[:, :-1])  # timestamp col is not expected by predict function
+                new_dat = np.column_stack((pat_id.T, vital_array, predictions))
+                data = np.unique(np.row_stack((data, new_dat)), axis=0)
+                np.savetxt(file, data, delimiter=',', fmt="%s")
+                break
+
+            print('Saving completed.')
+
     elif sys.argv[1] == '-help':  # If help is needed
         print_help()  # prints help on the command line
     else:  # unexpected arguments given
