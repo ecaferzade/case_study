@@ -42,26 +42,14 @@ def get_vital_sign_hist(url):
     return vital_sign_history
 
 
-def conv_vital_to_array(vital_sign_history):
-    """Create the vital sign matrix (np.array) out of vital sign history list
-       to feed it in the ICU model: Extract the vital sign values from string
-       using regular expressions, convert them in floats
-       and make a numpy array out of it.
+def conv_dict_to_list(pat_dict):
+    pat_l = list(pat_dict.values())
+    return pat_l
 
-       Arguments:
-       vital_sign_history (list): This is a list of dictionaries where each dict represents
-       a patients data.
 
-       Returns:
-       vital_array (np.array) : Vital signs as a MxN matrix, where M in the number of patients
-       and N number of vital signs.
-    """
-    temp = []  # temp list used for list->np.array transition
-    for patient in vital_sign_history:
-        vit_val = re.findall(r'[-+]?\d*\.\d+|\d+', patient['vital_signs'])
-        temp.append([float(i) for i in vit_val])  # Collect all floats in this list
-    vital_arr = np.array(temp)  # Make an np.array out of the list
-    return vital_arr
+def extract_nmbr_from_str(vital_val_str):
+    vital_val_floats = re.findall(r'[-+]?\d*\.\d+|\d+', vital_val_str)
+    return vital_val_floats
 
 
 if __name__ == '__main__':
@@ -73,25 +61,29 @@ if __name__ == '__main__':
         # TBD
         pass
     elif sys.argv[1] == '-batch':  # batch mode for demo purposes
-        model = model.ICUZen()
-        file = open('xyz.txt', 'w')
-        data = np.array([['pat_id', 'body_temp', 'blood_pres_sys', 'blood_pres_dia',
-                         'heart_rate', 'resp_rate', 'time_stmp', 'predic']])
-        while True:
+        pat_list = []
+        for _ in range(10):
             vital_sign_hist = get_vital_sign_hist('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
-            if not vital_sign_hist:  # If vital_sign_history is empty
+            if not vital_sign_hist:  # If API response is empty
                 pass
             else:  # If the API responded with content
-                pat_id = np.array([[x['patient_id'] for x in vital_sign_hist]])  # patient ids
-                vital_array = conv_vital_to_array(vital_sign_hist)  # input prep for predict function
-                predictions = model.predict(vital_array[:, :-1])  # timestamp col is not expected by predict function
-                new_dat = np.column_stack((pat_id.T, vital_array, predictions))
-                data = np.unique(np.row_stack((data, new_dat)), axis=0)
-                np.savetxt(file, data, delimiter=',', fmt="%s")
-                break
-
-            print('Saving completed.')
-
+                for patience in vital_sign_hist:
+                    pat_info = conv_dict_to_list(patience)
+                    vital_val = extract_nmbr_from_str(pat_info[1])
+                    pat_info = pat_info[0:1] + vital_val
+                    pat_list.append(pat_info)
+        try:
+            data = np.array(pat_list)
+            X = data[:, 1:-1].astype(float)  # get rid off pat_id & timestamp with index slicing
+            model = model.ICUZen()
+            predictions = model.predict(X)
+            data = np.column_stack((data, predictions))
+            data = np.unique(data, axis=0)
+            file = open('collected_data.txt', 'w')
+            np.savetxt(file, data, delimiter=',', fmt="%s")
+            file.close()
+        except IndexError:
+            print('None of the GET requests to the API resulted with data.')
     elif sys.argv[1] == '-help':  # If help is needed
         print_help()  # prints help on the command line
     else:  # unexpected arguments given
