@@ -9,5 +9,8 @@ After the collection, data is given to a ML model to predict based on medical da
 The program outputs a text file which contains collected data and corresponding predictions of the model. 
 
 ## Usage
-The script can be run in two modes: realtime and demo
+The script can be run in two modes: realtime and demo.
 These two modes differ in the stopping criterion for data collection.
+In the realtime mode, data will be collected until the user presses the ENTER and thus terminates the program. This gives one the flexibility of not having 
+to determine the number of data request iterations beforehand. This mode is thought as a draft for future real application of the data pipeline, where
+real patients data flow continuously.
