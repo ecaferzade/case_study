@@ -21,6 +21,9 @@ In both modes, the program outputs the results (collected data in an organised f
 #### Functions
 The functions defined in the program fall in two major categories: 
 1) The ones used for communication with the user, i.e print on the prompt. These are pretty straight forward and won't be discussed here.
-2) The other ones preparing the result:
+2) The other ones are used to prepare the output:
+  * get_pat_hist(), conv_dict_to_list(), extract_nmbr_from_str() are functions for to collect data from API, prepare the data as input for the ML model respectively.
+  * make_pred() and save_results() are responsible for prediction making based on the collected data and saving of it.
+
 
 #### Program Flow
