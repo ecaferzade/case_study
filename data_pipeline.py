@@ -12,6 +12,8 @@ def print_help():
     Print usage message (incl. description, synopsis and options) on command line
     :return: -
     """
+    logging.info('\n' + '\033[1m' + 'NAME' + '\033[0m')
+    logging.info('\t data_pipeline.py')
     logging.info('\n' + '\033[1m' + 'DESCRIPTION' + '\033[0m')
     logging.info('\t This python script connects with the MensSana_ICU_API and collects data of ICU patients.')
     logging.info('\t After the collection, data is given to a ML model to predict wether an alarm should be thrown or not.')
@@ -47,23 +49,23 @@ def print_unexp_arg():
 
 def print_miss_arg():
     """
-    Print instructions on command line when unexpected arguments are given to the program.
+    Print instructions on command line when arguments are missing.
     :return: -
     """
     logging.info('\ndata_pipeline.py: Missing arguments. See \'data_pipeline.py -help\'.\n')
 
 
-def get_vital_sign_hist(url):
+def get_pat_hist(url):
     """
     Get the history of vital signs data of the patients from the given API.
     :param url: (str) the url of the API endpoint
-    :return vital_sign_history: (list) vital signs list, where each element is a dictionary and represents a patient.
+    :return patient_history: (list) vital signs list, where each element is a dictionary and represents a patient.
     """
     resp_api = requests.get(url)
     if not (200 <= resp_api.status_code < 300):  # Check if HTTP status code is OK
         logging.info("Problem: status code of the response", resp_api.status_code)
-    vital_sign_history = resp_api.json()['patient_list']
-    return vital_sign_history
+    patient_history = resp_api.json()['patient_list']
+    return patient_history
 
 
 def conv_dict_to_list(pat_dict):
@@ -78,7 +80,7 @@ def conv_dict_to_list(pat_dict):
 
 def extract_nmbr_from_str(vital_val_str):
     """
-    Extract numbers from a string using regular expressions.
+    Extract numbers from a string using regular expressions and make a list out of it.
     :param vital_val_str: (str) This string contains all vital sign values like body temperature etc.
     :return vital_values: (list) The elements of this list are vital sign values in string format.
     """
@@ -88,27 +90,27 @@ def extract_nmbr_from_str(vital_val_str):
 
 def make_pred(patience_list, mdl):
     """
-    Prepare collected data for giving it as model input: Convert it to a np.array with datatype floats.
+    Prepare collected data for giving it to model as input: Convert it to a np.array with datatype floats.
     Filter redundant data and by the model not expected features.
-    :param patience_list: (list) Consists of all collected patient info
+    :param patience_list: (list) Consists of all collected and organised patient info
     :param mdl: (model.ICUZen) ML model used for the predictions.
     :return reslt: (np.array) This array contains all unique patient info and corresponding predictions and
-                                forms therefore the desired results.
+                                forms therefore the desired results of the test phase.
     """
     data = np.array(patience_list)
     data = np.unique(data, axis=0)  # filter redundant data
     x = data[:, 1:-1].astype(float)  # prepare data as input for the model
     mdl = mdl
     predictions = mdl.predict(x)
-    reslt = np.column_stack((data, predictions))  # add corresponding predictions as col to pat info
+    reslt = np.column_stack((data, predictions))  # add corresponding predictions as col to pat. data
     return reslt
 
 
 def save_results(reslt, filename='results'):
     """
-    Save the resulting data, i.e the patient information and corresponding prediction of the ML model to a .txt file.
+    Save the resulting data, i.e the patient data and corresponding prediction of the ML model to a .txt file.
     :param reslt: (np.array) resulting data to save
-    :param filename: (str) Optional argument to name the file to be saved.
+    :param filename: (str) Optional argument to name the file to be saved. Defaults 'results'
     :return: -
     """
     file = open(filename + '.txt', 'w')
@@ -125,26 +127,26 @@ if __name__ == '__main__':
         if len(sys.argv) > 3:  # if too many args are given.
             print_unexp_arg()
             exit()
-        pat_list = []
+        pat_list = []  # Collect organized patient info here.
         logging.info('Collecting data...')
         logging.info('To quit with saving the collected data press ENTER.')
-        while True:
-            vital_sign_hist = get_vital_sign_hist('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
-            for patience in vital_sign_hist:  # for each dict in a list of dicts do:
+        while True:  # Keep looping until ENTER is pressed
+            pat_history = get_pat_hist('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
+            for patience in pat_history:  # for each dict in a list of dicts do:
                 pat_info = conv_dict_to_list(patience)  # convert each dict to a list
                 vital_val = extract_nmbr_from_str(pat_info[1])  # extract vital values from a single string
                 pat_info = pat_info[0:1] + vital_val  # new pat. info where every vital val is a discrete str.
                 pat_list.append(pat_info)  # add this formed pat. info to the big list
             if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:  # if ENTER is pressed (on UNIX):
-                try:
+                try:  # API responded with content
                     if len(sys.argv) == 3:  # if desired file name is provided.
                         results = make_pred(pat_list, model.ICUZen())
                         save_results(results, sys.argv[2])
-                    else:  # if not proceed with default file name.
+                    else:  # if no filename specified proceed with default file name.
                         results = make_pred(pat_list, model.ICUZen())
                         save_results(results)
-                    logging.info('\nData collection and model prediction completed. Results are saved.')
-                except IndexError:  # API didn't respond with content.
+                    logging.info('Data collection and model prediction completed. Results are saved.')
+                except IndexError:  # API didn't respond with content meaning pat_list is empty
                     logging.info('None of the GET requests to the API resulted with data.')
                     logging.info('Please try again.')
                 finally:
@@ -152,32 +154,32 @@ if __name__ == '__main__':
     elif (len(sys.argv) == 2) and (sys.argv[1] == '-demo'):
         print_miss_arg()
     elif (sys.argv[1] == '-demo') and (sys.argv[2].isdigit()):  # demo mode
-        if len(sys.argv) > 4:  # if too many args are given.
+        if (len(sys.argv) > 4) or (sys.argv[2] == '0'):  # if too many args or 0 as req_nr is given.
             print_unexp_arg()
             exit()
         pat_list = []
         logging.info('Collecting data...')
-        for request in range(int(sys.argv[2])):  # do sys.argv[2]==req_nr GET requests
-            vital_sign_hist = get_vital_sign_hist('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
+        for request in range(int(sys.argv[2])):  # make sys.argv[2]==req_nr GET requests
+            pat_history = get_pat_hist('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
             sys.stdout.write("\rNumber of made requests so far: {}".format(request+1))
             sys.stdout.flush()
-            for patience in vital_sign_hist:  # for each dict in a list of dicts do:
+            for patience in pat_history:  # for each dict in a list of dicts do:
                 pat_info = conv_dict_to_list(patience)  # convert each dict to a list
                 vital_val = extract_nmbr_from_str(pat_info[1])  # extract vital values from a single string
                 pat_info = pat_info[0:1] + vital_val  # new pat. info where every vital val is a discrete str.
                 pat_list.append(pat_info)  # add this formed pat. info to the big list
         try:
-            if len(sys.argv) == 4:  # if desired file name is provided.
+            if len(sys.argv) == 4:  # if file name is provided as argument
                 results = make_pred(pat_list, model.ICUZen())
                 save_results(results, sys.argv[3])
-            else:  # if not proceed with default file name.
+            else:  # if file name not provided proceed with default file name.
                 results = make_pred(pat_list, model.ICUZen())
                 save_results(results)
             logging.info('\nData collection and model prediction completed. Results are saved.')
-        except IndexError:
+        except IndexError:  # API didn't respond with content meaning pat_list is empty
             logging.info('None of the GET requests to the API resulted with data.')
             logging.info('Please try again.')
-    elif sys.argv[1] == '-help':  # If help is needed
+    elif (sys.argv[1] == '-help') or (sys.argv[1] == '-h'):  # If help is needed
         print_help()  # prints help on the command line
     else:  # unexpected arguments given
         print_unexp_arg()
