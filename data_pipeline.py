@@ -161,7 +161,7 @@ if __name__ == '__main__':
         logging.info('Collecting data...')
         for request in range(int(sys.argv[2])):  # make sys.argv[2]==req_nr GET requests
             pat_history = get_pat_hist('https://idalab-icu.ew.r.appspot.com/history_vital_signs')
-            sys.stdout.write("\rNumber of made requests so far: {}".format(request+1))
+            sys.stdout.write("\rNumber of made requests to API so far: {}/{}".format(request+1, sys.argv[2]))
             sys.stdout.flush()
             for patience in pat_history:  # for each dict in a list of dicts do:
                 pat_info = conv_dict_to_list(patience)  # convert each dict to a list
