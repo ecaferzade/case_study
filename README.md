@@ -17,3 +17,10 @@ real patients data flow continuously.
 On the other hand, demo mode is thought for demo purposes. Here the user gives the desired number of data request iterations as argument to the program. After given number of iterations are completed, the program terminates.
 In both modes, the program outputs the results (collected data in an organised form and the predictions) and save them locally.
 
+### Technical Details
+#### Functions
+The functions defined in the program fall in two major categories: 
+1) The ones used for communication with the user, i.e print on the prompt. These are pretty straight forward and won't be discussed here.
+2) The other ones preparing the result:
+
+#### Program Flow
